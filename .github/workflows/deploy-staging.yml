@@ -39,4 +39,5 @@ jobs:
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "Deployment to Staging - ${{ github.ref }}"
           body: "The application has been deployed to the staging server."
+          from: seyidiamond11@gmail.com
           to: mayowaoluwaseyiojo@gmail.com
