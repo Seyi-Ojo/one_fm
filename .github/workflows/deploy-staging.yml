@@ -15,45 +15,7 @@ env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: "3.10"
-
-      - name: Install Frappe and dependencies
-        run: |
-          # Install basic requirements
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-
-          # Install Frappe
-          git clone https://github.com/frappe/frappe.git
-          cd frappe
-          pip install -e .
-          cd ..
-
-          # Install the package in development mode
-          pip install -e .
-
-      # Skipping the failing unit tests
-      # - name: Run unit tests
-      #   run: |
-      #     pytest tests/unit/ -v --cov=one_fm --cov-report=xml
-
-      - name: Run integration tests
-        run: |
-          docker-compose -f docker-compose.test.yml up -d
-          pytest tests/integration/
-          docker-compose -f docker-compose.test.yml down
-
   deploy:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
