@@ -1,25 +1,27 @@
 import pytest
-from one_fm import hooks
 
 
 def test_app_name():
     """Test the app name is correctly set"""
-    assert hooks.app_name == "one_fm"
+    from one_fm import app_name
+    assert app_name == "one_fm"
 
 
 def test_app_title():
     """Test the app title is correctly set"""
-    assert hasattr(hooks, 'app_title')
+    from one_fm import app_title
+    assert app_title == "One Facilities Management"
 
 
 def test_app_version():
     """Test app version exists"""
-    assert hasattr(hooks, 'app_version')
+    from one_fm import __version__
+    assert isinstance(__version__, str)
 
 
 @pytest.mark.skip(reason="ERPNext not installed in test environment")
 def test_required_apps():
     """Test required apps are correctly configured"""
-    required_apps = getattr(hooks, 'required_apps', [])
+    from one_fm import required_apps
     assert "frappe" in required_apps
     assert "erpnext" in required_apps

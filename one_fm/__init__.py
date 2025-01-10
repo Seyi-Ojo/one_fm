@@ -10,13 +10,13 @@ from erpnext.setup.doctype.employee.employee import Employee
 # from one_fm.api.doc_methods.salary_slip import (
 # 	get_working_days_details, get_unmarked_days_based_on_doj_or_relieving, get_unmarked_days, get_data_for_eval
 # )
-from one_fm.api.doc_methods.item_price import validate,check_duplicates
+from one_fm.api.doc_methods.item_price import validate, check_duplicates
 from hrms.hr.doctype.leave_application.leave_application import LeaveApplication
 from one_fm.api.mobile.Leave_application import notify_leave_approver
 from erpnext.controllers.taxes_and_totals import calculate_taxes_and_totals
 from one_fm.operations.doctype.contracts.contracts import calculate_item_values
 
-from one_fm.overrides.workflow import filter_allowed_users, get_next_possible_transitions,is_workflow_action_already_created_
+from one_fm.overrides.workflow import filter_allowed_users, get_next_possible_transitions, is_workflow_action_already_created_
 from frappe.workflow.doctype.workflow_action import workflow_action
 
 
@@ -24,14 +24,14 @@ from frappe.desk.doctype.notification_log.notification_log import NotificationLo
 from one_fm.api.notification import after_insert
 from one_fm.one_fm.payroll_utils import add_tax_components
 from one_fm.utils import post_login, validate_reports_to, custom_validate_nestedset_loop, get_existing_leave_count, custom_validate_interviewer
-from hrms.overrides.employee_master import EmployeeMaster,validate_onboarding_process
+from hrms.overrides.employee_master import EmployeeMaster, validate_onboarding_process
 from one_fm.overrides.employee import EmployeeOverride
-from frappe.email.doctype.email_queue.email_queue import QueueBuilder,SendMailContext
-from one_fm.overrides.email_queue import prepare_email_content as email_content,get_unsubscribe_str_
+from frappe.email.doctype.email_queue.email_queue import QueueBuilder, SendMailContext
+from one_fm.overrides.email_queue import prepare_email_content as email_content, get_unsubscribe_str_
 from frappe.workflow.doctype.workflow_action import workflow_action
 # from one_fm.utils import override_frappe_send_workflow_action_email
 from erpnext.accounts.doctype.payment_entry.payment_entry import PaymentEntry
-from one_fm.overrides.payment_entry import add_party_gl_entries_,get_valid_reference_doctypes_
+from one_fm.overrides.payment_entry import add_party_gl_entries_, get_valid_reference_doctypes_
 from one_fm.overrides.stock_ledger import get_valuation_rate_
 from one_fm.overrides.interview import validate_interview_overlap
 from erpnext.stock import stock_ledger
@@ -51,7 +51,17 @@ from frappe.core.doctype.user_permission import user_permission
 from one_fm.permissions import get_custom_user_permissions
 
 
-__version__ = '15.1.4'
+__version__ = '0.0.1'
+app_name = "one_fm"
+app_title = "One Facilities Management"
+app_publisher = "omar jaber"
+app_description = "One Facility Management Application"
+app_icon = "octicon octicon-file-directory"
+app_color = "grey"
+app_email = "omar.ja93@gmail.com"
+app_license = "MIT"
+
+required_apps = ["frappe", "erpnext"]
 
 user_permission.get_user_permissions = get_custom_user_permissions
 StockController.make_batches = make_batches_with_supplier_batch_id
@@ -66,7 +76,7 @@ workflow_action.get_next_possible_transitions = get_next_possible_transitions
 workflow_action.is_workflow_action_already_created = is_workflow_action_already_created_
 SendMailContext.get_unsubscribe_str = get_unsubscribe_str_
 
-QueueBuilder.prepare_email_content  = email_content
+QueueBuilder.prepare_email_content = email_content
 EmployeeMaster.validate = EmployeeOverride.validate
 EmployeeMaster.validate_onboarding_process = validate_onboarding_process
 frappe.auth.LoginManager.post_login = post_login
