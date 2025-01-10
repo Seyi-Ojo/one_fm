@@ -27,6 +27,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Print secret (masked)
+        run: |
+          echo "The user is: ${{ secrets.EC2_HOST }}"
+
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
