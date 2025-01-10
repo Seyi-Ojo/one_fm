@@ -25,17 +25,24 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install dependencies
+      - name: Install Frappe and dependencies
         run: |
+          # Install basic requirements
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
-      - name: Run unit tests
-        run: |
+          # Install Frappe
+          git clone https://github.com/frappe/frappe.git
+          cd frappe
+          pip install -e .
+          cd ..
+
           # Install the package in development mode
           pip install -e .
-          # Run tests with verbose output
+
+      - name: Run unit tests
+        run: |
           pytest tests/unit/ -v --cov=one_fm --cov-report=xml
 
       - name: Run integration tests
