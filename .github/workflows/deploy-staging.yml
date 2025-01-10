@@ -3,7 +3,7 @@ name: Deploy to Staging
 on:
   push:
     branches:
-      - deploy-to-staging
+      - feature/deploy-to-staging
 
 env:
   SITE_NAME: ${{ secrets.EC2_HOST }}
