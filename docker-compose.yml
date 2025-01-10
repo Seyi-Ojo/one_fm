@@ -1,0 +1,44 @@
+services:
+  one-fm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+    environment:
+      - FRAPPE_DATABASE_HOST=db
+      - REDIS_CACHE=redis:6379
+      - SITE_NAME=${SITE_NAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+    volumes:
+      - frappe-sites:/home/frappe/frappe-bench/sites
+      - frappe-logs:/home/frappe/frappe-bench/logs
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: mariadb:10.6
+    restart: always
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_USER=frappe
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=one_fm
+    volumes:
+      - db-data:/var/lib/mysql
+
+  redis:
+    image: redis:6
+    restart: always
+    volumes:
+      - redis-data:/data
+
+volumes:
+  frappe-sites:
+  frappe-logs:
+  db-data:
+  redis-data:

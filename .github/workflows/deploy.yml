@@ -1,0 +1,103 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install frappe-bench
+          pip install -r requirements.txt
+
+      - name: Run Tests
+        run: |
+          bench run-tests --app one_fm
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Build Docker image
+        run: docker build -t one_fm_app:${{ github.sha }} .
+
+      - name: Push to ECR
+        run: |
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+          docker tag one_fm_app:${{ github.sha }} ${{ secrets.ECR_REGISTRY }}/one_fm_app:${{ github.sha }}
+          docker push ${{ secrets.ECR_REGISTRY }}/one_fm_app:${{ github.sha }}
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Pull the new image
+            docker pull ${{ secrets.ECR_REGISTRY }}/one_fm_app:${{ github.sha }}
+
+            # Stop and remove existing container
+            docker stop one_fm_app || true
+            docker rm one_fm_app || true
+
+            # Run the new container
+            docker run -d \
+              --name one_fm_app \
+              -p 8000:8000 \
+              -p 9000:9000 \
+              -p 3306:3306 \
+              -p 6379:6379 \
+              -v frappe_sites:/workspace/frappe-bench/sites \
+              -v frappe_logs:/workspace/frappe-bench/logs \
+              ${{ secrets.ECR_REGISTRY }}/one_fm_app:${{ github.sha }}
+
+            # Wait for services to start
+            sleep 30
+
+            # Create new site if it doesn't exist
+            docker exec one_fm_app bash -c '
+              cd /workspace/frappe-bench && \
+              bench new-site one-fm.local \
+                --admin-password ${{ secrets.ADMIN_PASSWORD }} \
+                --mariadb-root-password ${{ secrets.DB_ROOT_PASSWORD }} || true && \
+              bench --site one-fm.local install-app one_fm
+            '
+
+    #   - name: Send notification
+    #     if: always()
+    #     uses: dawidd6/action-send-mail@v3
+    #     with:
+    #       server_address: smtp.gmail.com
+    #       server_port: 465
+    #       username: ${{ secrets.EMAIL_USERNAME }}
+    #       password: ${{ secrets.EMAIL_PASSWORD }}
+    #       subject: Deployment ${{ job.status }} for ${{ github.repository }}
+    #       body: |
+    #         Deployment ${{ job.status }} for commit ${{ github.sha }}
+    #         Repository: ${{ github.repository }}
+    #         Branch: ${{ github.ref }}
+    #         Commit message: ${{ github.event.head_commit.message }}
+    #       to: seyidiamond11@gmil.com
+    #       from: CI/CD Pipeline

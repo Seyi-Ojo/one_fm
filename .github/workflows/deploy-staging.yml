@@ -1,0 +1,113 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - deploy-to-staging
+
+env:
+  SITE_NAME: ${{ secrets.EC2_HOST }}
+  ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+  DB_ROOT_PASSWORD: ${{ secrets.DB_ROOT_PASSWORD }}
+  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  EC2_HOST: ${{ secrets.EC2_HOST }}
+  EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run unit tests
+        run: |
+          pytest tests/unit/ --cov=one_fm --cov-report=xml
+
+      - name: Run integration tests
+        run: |
+          docker-compose -f docker-compose.test.yml up -d
+          pytest tests/integration/
+          docker-compose -f docker-compose.test.yml down
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: true
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$EC2_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
+
+      - name: Copy files to EC2
+        run: |
+          scp -r ./* ubuntu@$EC2_HOST:/home/ubuntu/one-fm/
+
+      - name: Install Docker and create env file
+        run: |
+          ssh ubuntu@$EC2_HOST '
+            # Create .env file
+            cat > /home/ubuntu/one-fm/.env << EOF
+            SITE_NAME=${{ env.SITE_NAME }}
+            ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}
+            DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            EOF
+
+            # Debug: Check if .env file was created (will hide actual values)
+            echo "Checking .env file exists:"
+            ls -la /home/ubuntu/one-fm/.env
+            echo "Checking .env file structure (values hidden):"
+            grep -v "PASSWORD" /home/ubuntu/one-fm/.env
+
+            # Install Docker if not installed
+            if ! command -v docker &> /dev/null; then
+              sudo apt-get update
+              sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+              sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+              sudo apt-get update
+              sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+              sudo usermod -aG docker ubuntu
+            fi
+
+            # Install Docker Compose if not installed
+            if ! command -v docker-compose &> /dev/null; then
+              sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+            fi
+
+            # Deploy application
+            cd /home/ubuntu/one-fm
+            sudo docker-compose down
+            sudo docker system prune -f
+            sudo docker-compose up -d --build
+          '
